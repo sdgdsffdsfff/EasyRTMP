@@ -11,9 +11,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="libEasyNVSource\Include\EasyNVSourceAPI.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="..\Include\EasyRTMPAPI.h">
       <Filter>头文件</Filter>
     </ClInclude>
