@@ -15,24 +15,19 @@
 #define SRTMP "rtmp://www.easydss.com/oflaDemo/rtsp"
 
 Easy_RTMP_Handle rtmpHandle = 0;
-Easy_RTSP_Handle fNVSHandle = 0;
+Easy_RTSP_Handle fRTSPHandle = 0;
 
-/* NVSource从RTSPClient获取数据后回调给上层 */
-int Easy_APICALL __RTSPSourceCallBack( int _chid, int *_chPtr, int _mediatype, char *pbuf, RTSP_FRAME_INFO *frameinfo)
+/* RTSPClient获取数据后回调给上层 */
+int Easy_APICALL __RTSPSourceCallBack( int _chid, int *_chPtr, int _frameType, char *pbuf, RTSP_FRAME_INFO *frameinfo)
 {
-	if (NULL != frameinfo)
-	{
-		if (frameinfo->height==1088)		frameinfo->height=1080;
-		else if (frameinfo->height==544)	frameinfo->height=540;
-	}
 	bool bRet = false;
 
 	//目前只处理视频
-	if (_mediatype == MEDIA_TYPE_VIDEO)
+	if (_frameType == EASY_SDK_VIDEO_FRAME_FLAG)
 	{
 		if(frameinfo && frameinfo->length)
 		{
-			if( frameinfo->type == FRAMETYPE_I)
+			if ( frameinfo->type == EASY_SDK_VIDEO_FRAME_I)
 			{
 				/* 关键帧是SPS、PPS、IDR(均包含00 00 00 01)的组合,reserved1是sps结尾的偏移,reserved2是pps结尾的偏移 */
 				if(rtmpHandle == 0)
@@ -53,7 +48,8 @@ int Easy_APICALL __RTSPSourceCallBack( int _chid, int *_chPtr, int _mediatype, c
 						printf("Fail to InitMetadata ...\n");
 					}
 				}
-				bRet = EasyRTMP_SendH264Packet(rtmpHandle, (unsigned char*)pbuf+frameinfo->reserved2+4, frameinfo->length-frameinfo->reserved2-4, true, (frameinfo->rtptimestamp)/90);
+				unsigned int timestamp = (frameinfo->timestamp_sec%1000000)*1000 + frameinfo->timestamp_usec/1000;
+				bRet = EasyRTMP_SendH264Packet(rtmpHandle, (unsigned char*)pbuf+frameinfo->reserved2+4, frameinfo->length-frameinfo->reserved2-4, true, timestamp);
 				if (!bRet)
 				{
 					printf("Fail to EasyRTMP_SendH264Packet(I-frame) ...\n");
@@ -67,7 +63,8 @@ int Easy_APICALL __RTSPSourceCallBack( int _chid, int *_chPtr, int _mediatype, c
 			{
 				if(rtmpHandle)
 				{
-					bRet = EasyRTMP_SendH264Packet(rtmpHandle, (unsigned char*)pbuf+4, frameinfo->length-4, false, (frameinfo->rtptimestamp)/90);
+					unsigned int timestamp = (frameinfo->timestamp_sec%1000000)*1000 + frameinfo->timestamp_usec/1000;
+					bRet = EasyRTMP_SendH264Packet(rtmpHandle, (unsigned char*)pbuf+4, frameinfo->length-4, false, timestamp);
 					if (!bRet)
 					{
 						printf("Fail to EasyRTMP_SendH264Packet(P-frame) ...\n");
@@ -85,17 +82,16 @@ int Easy_APICALL __RTSPSourceCallBack( int _chid, int *_chPtr, int _mediatype, c
 
 int main()
 {
-	//创建EasyNVSource
-	EasyRTSP_Init(&fNVSHandle);
-	if (NULL == fNVSHandle) return 0;
+	//创建EasyRTSPClient
+	EasyRTSP_Init(&fRTSPHandle);
+	if (NULL == fRTSPHandle) return 0;
 
-	unsigned int mediaType = MEDIA_TYPE_VIDEO;
-	//mediaType |= MEDIA_TYPE_AUDIO;	//换为NVSource, 屏蔽声音
+	unsigned int mediaType = EASY_SDK_VIDEO_FRAME_FLAG | EASY_SDK_AUDIO_FRAME_FLAG;
 
 	//设置数据回调
-	EasyRTSP_SetCallback(fNVSHandle, __RTSPSourceCallBack);
+	EasyRTSP_SetCallback(fRTSPHandle, __RTSPSourceCallBack);
 	//打开RTSP网络串流
-	EasyRTSP_OpenStream(fNVSHandle, 0, RTSPURL, RTP_OVER_TCP, mediaType, 0, 0, NULL, 1000, 0);
+	EasyRTSP_OpenStream(fRTSPHandle, 0, RTSPURL, RTP_OVER_TCP, mediaType, 0, 0, NULL, 1000, 0);
 
 	while(1)
 	{
@@ -106,11 +102,11 @@ int main()
     EasyRTMP_Session_Release(rtmpHandle);
     rtmpHandle = 0;
    
-	//关闭EasyNVSource拉取
-	EasyRTSP_CloseStream(fNVSHandle);
-	//释放EasyNVSource
-	EasyRTSP_Deinit(&fNVSHandle);
-	fNVSHandle = NULL;
+	//关闭EasyRTSPClient拉取
+	EasyRTSP_CloseStream(fRTSPHandle);
+	//释放EasyRTSPClient
+	EasyRTSP_Deinit(&fRTSPHandle);
+	fRTSPHandle = NULL;
 
     return 0;
 }
