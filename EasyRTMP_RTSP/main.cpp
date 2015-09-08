@@ -48,8 +48,8 @@ int Easy_APICALL __RTSPSourceCallBack( int _chid, int *_chPtr, int _frameType, c
 						printf("Fail to InitMetadata ...\n");
 					}
 				}
-				unsigned int timestamp = (frameinfo->timestamp_sec%1000000)*1000 + frameinfo->timestamp_usec/1000;
-				bRet = EasyRTMP_SendH264Packet(rtmpHandle, (unsigned char*)pbuf+frameinfo->reserved2+4, frameinfo->length-frameinfo->reserved2-4, true, timestamp);
+				unsigned long long timestamp = (frameinfo->timestamp_sec%1000000)*1000 + frameinfo->timestamp_usec/1000;
+				bRet = EasyRTMP_SendH264Packet(rtmpHandle, (unsigned char*)pbuf+frameinfo->reserved2+4, frameinfo->length-frameinfo->reserved2-4, true, timestamp/90);
 				if (!bRet)
 				{
 					printf("Fail to EasyRTMP_SendH264Packet(I-frame) ...\n");
@@ -59,12 +59,12 @@ int Easy_APICALL __RTSPSourceCallBack( int _chid, int *_chPtr, int _frameType, c
 					printf("I");
 				}
 			}
-			else
+			else if( frameinfo->type == EASY_SDK_VIDEO_FRAME_P)
 			{
 				if(rtmpHandle)
 				{
-					unsigned int timestamp = (frameinfo->timestamp_sec%1000000)*1000 + frameinfo->timestamp_usec/1000;
-					bRet = EasyRTMP_SendH264Packet(rtmpHandle, (unsigned char*)pbuf+4, frameinfo->length-4, false, timestamp);
+					unsigned long long timestamp = (frameinfo->timestamp_sec%1000000)*1000 + frameinfo->timestamp_usec/1000;
+					bRet = EasyRTMP_SendH264Packet(rtmpHandle, (unsigned char*)pbuf+4, frameinfo->length-4, false, timestamp/90);
 					if (!bRet)
 					{
 						printf("Fail to EasyRTMP_SendH264Packet(P-frame) ...\n");
